@@ -63,9 +63,9 @@ class BankingServiceTest {
 
         @Test
         void blankOrMissingIdIsRejected() {
-            assertThatThrownBy(() -> bank.openAccount(null)).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> bank.openAccount("")).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> bank.openAccount("   ")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> bank.openAccount(null)).isInstanceOf(InvalidAccountIdException.class);
+            assertThatThrownBy(() -> bank.openAccount("")).isInstanceOf(InvalidAccountIdException.class);
+            assertThatThrownBy(() -> bank.openAccount("   ")).isInstanceOf(InvalidAccountIdException.class);
         }
 
         @Test
@@ -316,7 +316,7 @@ class BankingServiceTest {
         @Test
         void transferToTheSameAccountIsRejected() {
             assertThatThrownBy(() -> bank.transfer("A", "A", money("10")))
-                    .isInstanceOf(BankingException.class);
+                    .isInstanceOf(InvalidTransferException.class);
 
             assertThat(bank.getBalance("A")).isEqualTo(money("100"));
             assertThat(bank.getTransactionHistory("A")).hasSize(1);

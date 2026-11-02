@@ -37,20 +37,23 @@ public class BankingService {
         }
     }
 
-    public void deposit(String accountId, Money amount) {
+    /** Returns the ledger entry that was written. */
+    public LedgerEntry deposit(String accountId, Money amount) {
         requirePositive(amount);
-        find(accountId).credit(EntryType.DEPOSIT, amount, null, null);
+        return find(accountId).credit(EntryType.DEPOSIT, amount, null, null);
     }
 
-    public void withdraw(String accountId, Money amount) {
+    /** Returns the ledger entry that was written. */
+    public LedgerEntry withdraw(String accountId, Money amount) {
         requirePositive(amount);
-        find(accountId).debit(EntryType.WITHDRAWAL, amount, null, null);
+        return find(accountId).debit(EntryType.WITHDRAWAL, amount, null, null);
     }
 
-    public void transfer(String fromAccountId, String toAccountId, Money amount) {
+    /** Returns the source account's side of the transfer. */
+    public LedgerEntry transfer(String fromAccountId, String toAccountId, Money amount) {
         requirePositive(amount);
         if (fromAccountId != null && fromAccountId.equals(toAccountId)) {
-            throw new BankingException("Cannot transfer to the same account: " + fromAccountId);
+            throw new InvalidTransferException("Cannot transfer to the same account: " + fromAccountId);
         }
         // Look both accounts up before touching either, so a bad destination
         // can never leave the source already debited.
@@ -62,6 +65,7 @@ public class BankingService {
         Account first = fromAccountId.compareTo(toAccountId) < 0 ? from : to;
         Account second = first == from ? to : from;
 
+        LedgerEntry sent;
         first.lock();
         try {
             second.lock();
@@ -69,7 +73,7 @@ public class BankingService {
                 String transferId = UUID.randomUUID().toString();
                 // The debit is the only step that can fail, and it runs first.
                 // Once it passes, the credit cannot fail, so no rollback is needed.
-                from.debit(EntryType.TRANSFER_OUT, amount, toAccountId, transferId);
+                sent = from.debit(EntryType.TRANSFER_OUT, amount, toAccountId, transferId);
                 to.credit(EntryType.TRANSFER_IN, amount, fromAccountId, transferId);
             } finally {
                 second.unlock();
@@ -77,6 +81,7 @@ public class BankingService {
         } finally {
             first.unlock();
         }
+        return sent;
     }
 
     public Money getBalance(String accountId) {

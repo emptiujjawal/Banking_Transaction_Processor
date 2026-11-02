@@ -22,7 +22,7 @@ final class Account {
 
     Account(String id, Money openingBalance, Clock clock) {
         if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("Account id must not be blank");
+            throw new InvalidAccountIdException("Account id must not be blank");
         }
         this.id = id;
         this.clock = clock;
@@ -61,30 +61,32 @@ final class Account {
         }
     }
 
-    void credit(EntryType type, Money amount, String counterparty, String transferId) {
+    LedgerEntry credit(EntryType type, Money amount, String counterparty, String transferId) {
         lock.lock();
         try {
             balance = balance.plus(amount);
-            record(type, amount, counterparty, transferId);
+            return record(type, amount, counterparty, transferId);
         } finally {
             lock.unlock();
         }
     }
 
-    void debit(EntryType type, Money amount, String counterparty, String transferId) {
+    LedgerEntry debit(EntryType type, Money amount, String counterparty, String transferId) {
         lock.lock();
         try {
             if (balance.isLessThan(amount)) {
                 throw new InsufficientFundsException(id, balance, amount);
             }
             balance = balance.minus(amount);
-            record(type, amount, counterparty, transferId);
+            return record(type, amount, counterparty, transferId);
         } finally {
             lock.unlock();
         }
     }
 
-    private void record(EntryType type, Money amount, String counterparty, String transferId) {
-        ledger.add(new LedgerEntry(id, type, amount, balance, clock.instant(), counterparty, transferId));
+    private LedgerEntry record(EntryType type, Money amount, String counterparty, String transferId) {
+        LedgerEntry entry = new LedgerEntry(id, type, amount, balance, clock.instant(), counterparty, transferId);
+        ledger.add(entry);
+        return entry;
     }
 }
